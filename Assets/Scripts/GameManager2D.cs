@@ -8,24 +8,40 @@ public class GameManager2D : MonoBehaviour
     public GameObject gameOverPanel;
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI finalScoreText;
+    public TextMeshProUGUI distanceText;     // NEW: live distance HUD
+    public TextMeshProUGUI finalDistanceText; // NEW: Game Over distance
 
     [Header("Refs")]
     public PlayerDragController2D playerController;
     public Spawner2D spawner;
 
     int score;
+    float distance; // NEW
     bool isGameOver;
 
     void Start()
     {
-        Time.timeScale = 1f;
+        Time.timeScale = 2f;
         AudioListener.pause = false;
+        distance = 0f;
+
         if (gameOverPanel) gameOverPanel.SetActive(false);
         UpdateScoreHUD();
 
-        // Auto-wire if you forgot to set refs in Inspector
         if (!playerController) playerController = FindObjectOfType<PlayerDragController2D>();
         if (!spawner)         spawner         = FindObjectOfType<Spawner2D>();
+    }
+
+    void Update()
+    {
+        // Only count distance while playing
+        if (!isGameOver)
+        {
+            // Assuming obstacles/coins move down at ~scrollSpeed = 2 units/sec
+            float scrollSpeed = 2f;
+            distance += scrollSpeed * Time.deltaTime;
+            UpdateDistanceHUD();
+        }
     }
 
     public void AddScore(int a)
@@ -35,25 +51,32 @@ public class GameManager2D : MonoBehaviour
         UpdateScoreHUD();
     }
 
-    void UpdateScoreHUD() { if (scoreText) scoreText.text = score.ToString(); }
+    void UpdateScoreHUD()
+    {
+        if (scoreText) scoreText.text = score.ToString();
+    }
+
+    void UpdateDistanceHUD()
+    {
+        if (distanceText)
+            distanceText.text = $"{distance:F1} m";
+    }
 
     public void GameOver()
     {
         if (isGameOver) return;
         isGameOver = true;
 
-        // 1) Stop gameplay scripts
         if (playerController) playerController.enabled = false;
-        if (spawner)         spawner.enabled         = false;
+        if (spawner) spawner.enabled = false;
         foreach (var s in FindObjectsOfType<Scroller2D>()) s.enabled = false;
 
-        // 2) Freeze time + audio (anything using unscaled time will also stop because we disabled scripts)
         Time.timeScale = 0f;
         AudioListener.pause = true;
 
-        // 3) Show overlay
         if (finalScoreText) finalScoreText.text = $"Score: {score}";
-        if (gameOverPanel)  gameOverPanel.SetActive(true);
+        if (finalDistanceText) finalDistanceText.text = $"Distance: {distance:F1} m";
+        if (gameOverPanel) gameOverPanel.SetActive(true);
     }
 
     public void RestartGame()
