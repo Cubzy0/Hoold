@@ -2,18 +2,45 @@ using UnityEngine;
 
 public class Spawner2D : MonoBehaviour
 {
-    public GameObject[] spawnables; // assign Coin, HazardBar
-    public float interval = 1.1f;
-    public float xRange = 2.6f;
-    float t;
+    [Header("Prefabs")]
+    public GameObject[] spawnables;       // Coin, Hazard, etc.
 
-    void Update(){
-        t += Time.deltaTime;
-        if (t >= interval){
-            t = 0f;
-            var prefab = spawnables[Random.Range(0, spawnables.Length)];
-            float x = Random.Range(-xRange, xRange);
-            Instantiate(prefab, new Vector3(x, 6f, 0f), Quaternion.identity);
+    [Header("Spawn Timing")]
+    public float baseInterval = 1.25f;    // easy start
+    public float minInterval  = 0.35f;    // fastest we allow
+    public float difficultyPerMeter = 0.004f; // how quickly it gets harder
+
+    [Header("Spawn Area")]
+    public float xRange = 2.6f;
+    public float ySpawn = 6f;
+
+    float timer;
+
+    // Current target interval based on distance
+    float CurrentInterval()
+    {
+        // Distance comes from your GameManager (static getter)
+        float d = GameManager2D.Distance; // meters
+        float interval = baseInterval - (d * difficultyPerMeter);
+        return Mathf.Max(minInterval, interval);
+    }
+
+    void Update()
+    {
+        timer += Time.deltaTime;  // uses scaled time -> slow-mo also slows spawning (feels coherent)
+        if (timer >= CurrentInterval())
+        {
+            timer = 0f;
+            SpawnOne();
         }
+    }
+
+    void SpawnOne()
+    {
+        if (spawnables == null || spawnables.Length == 0) return;
+
+        float x = Random.Range(-xRange, xRange);
+        var prefab = spawnables[Random.Range(0, spawnables.Length)];
+        Instantiate(prefab, new Vector3(x, ySpawn, 0f), Quaternion.identity);
     }
 }

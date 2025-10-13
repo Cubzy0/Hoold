@@ -4,62 +4,50 @@ using TMPro;
 
 public class GameManager2D : MonoBehaviour
 {
-    [Header("UI")]
-    public GameObject gameOverPanel;
+    // Global distance everyone reads
+    public static float Distance { get; private set; }
+
+    [Header("UI (HUD)")]
     public TextMeshProUGUI scoreText;
+    public TextMeshProUGUI distanceText;
+
+    [Header("UI (Game Over Panel)")]
+    public GameObject gameOverPanel;
     public TextMeshProUGUI finalScoreText;
-    public TextMeshProUGUI distanceText;     // NEW: live distance HUD
-    public TextMeshProUGUI finalDistanceText; // NEW: Game Over distance
+    public TextMeshProUGUI finalDistanceText;
 
     [Header("Refs")]
     public PlayerDragController2D playerController;
     public Spawner2D spawner;
 
     int score;
-    float distance; // NEW
     bool isGameOver;
 
     void Start()
     {
-        Time.timeScale = 2f;
-        AudioListener.pause = false;
-        distance = 0f;
-
+        Time.timeScale = 1f;
+        isGameOver = false;
+        Distance = 0f;                         // reset each run
+        if (distanceText) distanceText.text = "0.0 m";
         if (gameOverPanel) gameOverPanel.SetActive(false);
-        UpdateScoreHUD();
-
-        if (!playerController) playerController = FindObjectOfType<PlayerDragController2D>();
-        if (!spawner)         spawner         = FindObjectOfType<Spawner2D>();
     }
 
     void Update()
     {
-        // Only count distance while playing
-        if (!isGameOver)
-        {
-            // Assuming obstacles/coins move down at ~scrollSpeed = 2 units/sec
-            float scrollSpeed = 2f;
-            distance += scrollSpeed * Time.deltaTime;
-            UpdateDistanceHUD();
-        }
+        if (isGameOver) return;
+
+        // Use the SAME speed your scrollers use
+        float speed = WorldScrollController2D.Speed;   // or const like 2f
+        Distance += speed * Time.deltaTime;            // (use unscaledDeltaTime if you want to ignore slow-mo)
+
+        if (distanceText) distanceText.text = $"{Distance:F1} m";
     }
 
-    public void AddScore(int a)
+    public void AddScore(int amount)
     {
         if (isGameOver) return;
-        score += a;
-        UpdateScoreHUD();
-    }
-
-    void UpdateScoreHUD()
-    {
+        score += amount;
         if (scoreText) scoreText.text = score.ToString();
-    }
-
-    void UpdateDistanceHUD()
-    {
-        if (distanceText)
-            distanceText.text = $"{distance:F1} m";
     }
 
     public void GameOver()
@@ -67,21 +55,21 @@ public class GameManager2D : MonoBehaviour
         if (isGameOver) return;
         isGameOver = true;
 
+        // stop scripts/time
         if (playerController) playerController.enabled = false;
         if (spawner) spawner.enabled = false;
-        foreach (var s in FindObjectsOfType<Scroller2D>()) s.enabled = false;
+        foreach (var s in FindObjectsByType<Scroller2D>(FindObjectsSortMode.None)) s.enabled = false;
 
-        Time.timeScale = 0f;
-        AudioListener.pause = true;
+        // write the FINAL numbers BEFORE restart
+        if (finalScoreText)    finalScoreText.text    = $"Score: {score}";
+        if (finalDistanceText) finalDistanceText.text = $"Distance: {Distance:F1} m";
 
-        if (finalScoreText) finalScoreText.text = $"Score: {score}";
-        if (finalDistanceText) finalDistanceText.text = $"Distance: {distance:F1} m";
         if (gameOverPanel) gameOverPanel.SetActive(true);
+        Time.timeScale = 0f;
     }
 
     public void RestartGame()
     {
-        AudioListener.pause = false;
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
